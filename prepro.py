@@ -71,7 +71,7 @@ def main():
     folder_path = sys.argv[1] # Change this to the folder containing TIFF frames
     frames_u = read_tiff_frames(folder_path)
     print(f"Read and log transformed {len(frames_u)} frames")
-    colour_folder=sys.argv[2]+"\color"
+    colour_folder=sys.argv[2]+"/color"
 
 
     save_tif_files(frames_u, colour_folder)
@@ -79,7 +79,7 @@ def main():
     upper=2**16-1
     print(f"Mask Lower {lower} ,Upper {upper}")
     kernel=np.ones((1,1))
-    mask_folder=sys.argv[2]+"\mask"
+    mask_folder=sys.argv[2]+"/mask"
     filtered_frames = filter_images(frames_u, kernel,lower,upper)
     print(f"Number of filtered frames {len(frames_u)}.")
     save_tif_files(filtered_frames, mask_folder)
