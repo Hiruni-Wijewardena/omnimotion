@@ -79,8 +79,8 @@ class RAFTExhaustiveDataset(Dataset):
         frame_interval = abs(id1 - id2)
 
         # read image, flow and confidence
-        img1 = imageio.imread(os.path.join(self.img_dir, img_name1)) / 255.
-        img2 = imageio.imread(os.path.join(self.img_dir, img_name2)) / 255.
+        img1 = imageio.imread(os.path.join(self.img_dir, img_name1)) / 65535.
+        img2 = imageio.imread(os.path.join(self.img_dir, img_name2)) / 65535.
 
         flow_file = os.path.join(self.flow_dir, '{}_{}.npy'.format(img_name1, img_name2))
         flow = np.load(flow_file)
