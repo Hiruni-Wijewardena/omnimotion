@@ -102,7 +102,7 @@ if __name__ == '__main__':
                                                                     use_max_loc=args.use_max_loc,
                                                                     radius=radius,
                                                                     return_kpts=True)
-        imageio.mimwrite(os.path.join(vis_dir, '{}_{:06d}_foreground_{}.mp4'.format(seq_name, trainer.step, query_id)),
+        imageio.mimwrite(os.path.join(vis_dir, '{}_{:06d}_foreground_{}.avi'.format(seq_name, trainer.step, query_id)),
                          frames, quality=8, fps=10)
         kpts_forground = kpts_forground.cpu().numpy()
 
@@ -116,11 +116,11 @@ if __name__ == '__main__':
                                                                      radius=radius,
                                                                      return_kpts=True)
         kpts_background = kpts_background.cpu().numpy()
-        imageio.mimwrite(os.path.join(vis_dir, '{}_{:06d}_background_{}.mp4'.format(seq_name, trainer.step, query_id)),
+        imageio.mimwrite(os.path.join(vis_dir, '{}_{:06d}_background_{}.avi'.format(seq_name, trainer.step, query_id)),
                          frames, quality=8, fps=10)
         # visualize trails
         vis_trail(args.data_dir, kpts_forground, kpts_background,
-                  os.path.join(vis_dir, '{}_{:06d}_{}_trails.mp4'.format(seq_name, trainer.step, query_id)))
+                  os.path.join(vis_dir, '{}_{:06d}_{}_trails.avi'.format(seq_name, trainer.step, query_id)))
 
     else:
         frames = trainer.eval_video_correspondences(query_id,
@@ -128,7 +128,7 @@ if __name__ == '__main__':
                                                     occlusion_th=args.occlusion_th,
                                                     use_max_loc=args.use_max_loc,
                                                     radius=radius)
-        imageio.mimwrite(os.path.join(vis_dir, '{}_{:06d}_{}.mp4'.format(seq_name, trainer.step, query_id)),
+        imageio.mimwrite(os.path.join(vis_dir, '{}_{:06d}_{}.avi'.format(seq_name, trainer.step, query_id)),
                          frames, quality=8, fps=10)
 
 

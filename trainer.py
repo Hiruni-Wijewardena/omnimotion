@@ -680,7 +680,7 @@ class BaseTrainer():
         img2 = self.images[id2].cpu().numpy()
         mask = mask[0].squeeze(-1).cpu().numpy()
         out = util.drawMatches(img1, img2, kp1, kp2, num_vis=num_pts, mask=mask)
-        out = cv2.putText(out, str(id2 - id1), org=(30, 50), fontScale=1, color=(65535, 65535, 65535),
+        out = cv2.putText(out, str(id2 - id1), org=(30, 50), fontScale=1, color=(255, 255, 255),
                           fontFace=cv2.FONT_HERSHEY_SIMPLEX, thickness=2)
         out = util.uint82float(out)
         return out
