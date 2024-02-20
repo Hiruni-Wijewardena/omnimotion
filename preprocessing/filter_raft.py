@@ -52,7 +52,7 @@ def run_filtering(args):
                 for img_file in img_files]
 
     flow_stats = {}
-    count_maps = np.zeros((num_imgs, h, w), dtype=np.uint16)
+    count_maps = np.zeros((num_imgs, h, w), dtype=np.int32)
     for i in range(num_imgs):
         imgname_i = os.path.basename(img_files[i])
         feature_i = features[i].permute(2, 0, 1)[None]
@@ -102,7 +102,7 @@ def run_filtering(args):
             if not imgname_i in flow_stats.keys():
                 flow_stats[imgname_i] = {}
             flow_stats[imgname_i][imgname_j] = np.sum(out_mask).item()
-            count_maps[i] += out_mask.sum(axis=-1).astype(np.uint16)
+            count_maps[i] += out_mask.sum(axis=-1).astype(np.int32)
             pbar.update(1)
 
     pbar.close()
