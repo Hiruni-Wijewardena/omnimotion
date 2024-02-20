@@ -97,7 +97,7 @@ def run_filtering(args):
                 mask_occluded = torch.zeros_like(mask_cycle)
 
             out_mask = torch.stack([mask_cycle, mask_occluded, torch.zeros_like(mask_cycle)], dim=-1).cpu().numpy()
-            imageio.imwrite('{}/{}_{}.png'.format(out_dir, imgname_i, imgname_j), (255 * out_mask.astype(np.uint8)))
+            imageio.imwrite('{}/{}_{}.png'.format(out_dir, imgname_i, imgname_j), (65535 * out_mask.astype(np.uint16)))
 
             if not imgname_i in flow_stats.keys():
                 flow_stats[imgname_i] = {}

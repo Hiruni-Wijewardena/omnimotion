@@ -115,9 +115,9 @@ class BaseTrainer():
         mask_files = [img_file.replace('color', 'mask').replace('.jpg', '.png') for img_file in self.img_files]
         print("#####################",mask_files[0])
         if os.path.exists(mask_files[0]):
-            masks = np.array([imageio.imread(mask_file)[..., :3].sum(axis=-1) / 255.
+            masks = np.array([imageio.imread(mask_file)[..., :3].sum(axis=-1) / 65535.
                               if imageio.imread(mask_file).ndim == 3 else
-                              imageio.imread(mask_file) / 255.
+                              imageio.imread(mask_file) / 65535.
                               for mask_file in mask_files])
             print("#####################",np.max(masks))
             self.masks = torch.from_numpy(masks).to(self.device) > 0.  # [n_imgs, h, w]
@@ -680,7 +680,7 @@ class BaseTrainer():
         img2 = self.images[id2].cpu().numpy()
         mask = mask[0].squeeze(-1).cpu().numpy()
         out = util.drawMatches(img1, img2, kp1, kp2, num_vis=num_pts, mask=mask)
-        out = cv2.putText(out, str(id2 - id1), org=(30, 50), fontScale=1, color=(255, 255, 255),
+        out = cv2.putText(out, str(id2 - id1), org=(30, 50), fontScale=1, color=(65535, 65535, 65535),
                           fontFace=cv2.FONT_HERSHEY_SIMPLEX, thickness=2)
         out = util.uint82float(out)
         return out
@@ -879,8 +879,8 @@ class BaseTrainer():
             depths_vis_color = np.stack(depths_vis_color, axis=0)
         else:
             depths_vis_color = depths_vis
-        colors_np = (255 * colors_np).astype(np.uint8)
-        depths_vis_color = (255 * depths_vis_color).astype(np.uint8)
+        colors_np = (65535 * colors_np).astype(np.uint16)
+        depths_vis_color = (65535 * depths_vis_color).astype(np.uint16)
         return colors_np, depths_vis_color
 
     def log(self, writer, step):

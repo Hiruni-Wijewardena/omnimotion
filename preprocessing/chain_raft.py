@@ -72,7 +72,7 @@ def run(args):
     flow_stats = {}
     count_maps = np.zeros((num_imgs, h, w), dtype=np.uint16)
 
-    images = [torch.from_numpy(imageio.imread(img_file) / 255.).float().permute(2, 0, 1)[None].to(DEVICE)
+    images = [torch.from_numpy(imageio.imread(img_file) / 65535.).float().permute(2, 0, 1)[None].to(DEVICE)
               for img_file in img_files]
     features = [torch.from_numpy(np.load(os.path.join(scene_dir, 'features', feature_name,
                                                       os.path.basename(img_file) + '.npy'))).float().to(DEVICE)
@@ -123,14 +123,14 @@ def run(args):
             accumulated_cycle_mask[direct_occlusion_mask] = False
 
             np.save(os.path.join(out_dir, '{}_{}.npy'.format(imgname_i, imgname_j)), accumulated_flow[0].cpu().numpy())
-            out_mask = np.concatenate([255 * accumulated_cycle_mask[..., None].astype(np.uint8),
+            out_mask = np.concatenate([65535 * accumulated_cycle_mask[..., None].astype(np.uint16),
                                        direct_masks[..., 1:]],
                                       axis=-1)
             imageio.imwrite('{}/{}_{}.png'.format(out_mask_dir, imgname_i, imgname_j), out_mask)
-            count_maps[i] += (out_mask / 255).sum(axis=-1).astype(np.uint16)
+            count_maps[i] += (out_mask / 65535).sum(axis=-1).astype(np.uint16)
             if not imgname_i in flow_stats.keys():
                 flow_stats[imgname_i] = {}
-            flow_stats[imgname_i][imgname_j] = int(np.sum(out_mask/255))
+            flow_stats[imgname_i][imgname_j] = int(np.sum(out_mask/65535))
 
             pbar.update(1)
 
@@ -197,14 +197,14 @@ def run(args):
             accumulated_cycle_mask[direct_occlusion_mask] = False
 
             np.save(os.path.join(out_dir, '{}_{}.npy'.format(imgname_i, imgname_j)), accumulated_flow[0].cpu().numpy())
-            out_mask = np.concatenate([255 * accumulated_cycle_mask[..., None].astype(np.uint8),
+            out_mask = np.concatenate([65535 * accumulated_cycle_mask[..., None].astype(np.uint16),
                                        direct_masks[..., 1:]],
                                       axis=-1)
             imageio.imwrite('{}/{}_{}.png'.format(out_mask_dir, imgname_i, imgname_j), out_mask)
-            count_maps[i] += (out_mask / 255).sum(axis=-1).astype(np.uint16)
+            count_maps[i] += (out_mask / 65535).sum(axis=-1).astype(np.uint16)
             if not imgname_i in flow_stats.keys():
                 flow_stats[imgname_i] = {}
-            flow_stats[imgname_i][imgname_j] = int(np.sum(out_mask / 255))
+            flow_stats[imgname_i][imgname_j] = int(np.sum(out_mask / 65535))
 
             pbar.update(1)
 

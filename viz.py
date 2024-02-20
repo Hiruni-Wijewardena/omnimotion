@@ -45,7 +45,7 @@ def vis_trail(scene_dir, kpts_foreground, kpts_background, save_path):
 
             for j in range(num_pts):
 
-                color = np.array(color_map(j/max(1, float(num_pts - 1)))[:3]) * 255
+                color = np.array(color_map(j/max(1, float(num_pts - 1)))[:3]) * 65535
 
                 color_alpha = 1
 
@@ -62,7 +62,7 @@ def vis_trail(scene_dir, kpts_foreground, kpts_background, save_path):
             img_curr = cv2.addWeighted(img1, alpha, img_curr, 1 - alpha, 0)
 
         for j in range(num_pts):
-            color = np.array(color_map(j/max(1, float(num_pts - 1)))[:3]) * 255
+            color = np.array(color_map(j/max(1, float(num_pts - 1)))[:3]) * 65535
             pt1 = kpts[i, j]
             p1 = (int(round(pt1[0])), int(round(pt1[1])))
             cv2.circle(img_curr, p1, 2, color, -1, lineType=16)
