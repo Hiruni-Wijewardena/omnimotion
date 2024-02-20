@@ -956,7 +956,7 @@ class BaseTrainer():
                                                                             vis_occlusion=self.args.vis_occlusion,
                                                                             use_max_loc=self.args.use_max_loc,
                                                                             occlusion_th=self.args.occlusion_th)
-                    print(video_correspondences.shape)
+                    print(video_correspondences[0].shape, video_correspondences.dtype)
                     imageio.mimwrite(os.path.join(vis_dir, '{}_corr_foreground_{:06d}.mp4'.format(self.seq_name, step)),
                                      video_correspondences,
                                      quality=8, fps=10)
