@@ -958,8 +958,7 @@ class BaseTrainer():
                                                                             occlusion_th=self.args.occlusion_th)
                     print(video_correspondences[0].shape)
                     imageio.mimwrite(os.path.join(vis_dir, '{}_corr_foreground_{:06d}.mp4'.format(self.seq_name, step)),
-                                     video_correspondences,
-                                     quality=8, fps=10)
+                                     video_correspondences, fps=10)
                     video_correspondences = self.eval_video_correspondences(0,
                                                                             use_mask=True,
                                                                             reverse_mask=True,
@@ -968,7 +967,7 @@ class BaseTrainer():
                                                                             occlusion_th=self.args.occlusion_th)
                     imageio.mimwrite(os.path.join(vis_dir, '{}_corr_background_{:06d}.mp4'.format(self.seq_name, step)),
                                      video_correspondences,
-                                     quality=8, fps=10)
+                                      fps=10)
                 else:
                     video_correspondences = self.eval_video_correspondences(0,
                                                                             vis_occlusion=self.args.vis_occlusion,
@@ -976,13 +975,13 @@ class BaseTrainer():
                                                                             occlusion_th=self.args.occlusion_th)
                     imageio.mimwrite(os.path.join(vis_dir, '{}_corr_{:06d}.mp4'.format(self.seq_name, step)),
                                      video_correspondences,
-                                     quality=8, fps=10)
+                                      fps=10)
                 color_frames, depth_frames = self.render_color_and_depth_videos(0, self.num_imgs,
                                                                                 chunk_size=self.args.chunk_size)
                 imageio.mimwrite(os.path.join(vis_dir, '{}_depth_{:06d}.mp4'.format(self.seq_name, step)), depth_frames,
-                                 quality=8, fps=10)
+                                  fps=10)
                 imageio.mimwrite(os.path.join(vis_dir, '{}_color_{:06d}.mp4'.format(self.seq_name, step)), color_frames,
-                                 quality=8, fps=10)
+                                  fps=10)
 
                 ids1 = np.arange(self.num_imgs)
                 ids2 = ids1 + 1
@@ -994,7 +993,7 @@ class BaseTrainer():
                                                                                  )
                 imageio.mimwrite(os.path.join(vis_dir, '{}_flow_{:06d}.mp4'.format(self.seq_name, step)),
                                  pred_optical_flows_vis[:-1],
-                                 quality=8, fps=10)
+                                  fps=10)
 
             if self.args.use_error_map and (step % self.args.i_cache == 0) and (step > 0):
                 flow_save_dir = os.path.join(self.out_dir, 'flow')
