@@ -209,7 +209,7 @@ def get_vertical_colorbar(h, vmin, vmax, cmap_name='jet', label=None, cbar_preci
     canvas.draw()
     s, (width, height) = canvas.print_to_buffer()
 
-    im = np.frombuffer(s, np.uint16).reshape((height, width, 4))
+    im = np.frombuffer(s, np.uint8).reshape((height, width, 4))
 
     im = im[:, :, :3].astype(np.float32) / 65535.
     if h != im.shape[0]:
