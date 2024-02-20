@@ -879,8 +879,8 @@ class BaseTrainer():
             depths_vis_color = np.stack(depths_vis_color, axis=0)
         else:
             depths_vis_color = depths_vis
-        colors_np = (65535 * colors_np).astype(np.uint16)
-        depths_vis_color = (65535 * depths_vis_color).astype(np.uint16)
+        colors_np = (255 * colors_np).astype(np.uint8)
+        depths_vis_color = (255 * depths_vis_color).astype(np.uint8)
         return colors_np, depths_vis_color
 
     def log(self, writer, step):

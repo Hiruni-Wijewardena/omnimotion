@@ -303,28 +303,28 @@ def make_colorwheel():
     col = 0
 
     # RY
-    colorwheel[0:RY, 0] = 65535
-    colorwheel[0:RY, 1] = np.floor(65535*np.arange(0,RY)/RY)
+    colorwheel[0:RY, 0] = 255
+    colorwheel[0:RY, 1] = np.floor(255*np.arange(0,RY)/RY)
     col = col+RY
     # YG
-    colorwheel[col:col+YG, 0] = 65535 - np.floor(65535*np.arange(0,YG)/YG)
-    colorwheel[col:col+YG, 1] = 65535
+    colorwheel[col:col+YG, 0] = 255 - np.floor(255*np.arange(0,YG)/YG)
+    colorwheel[col:col+YG, 1] = 255
     col = col+YG
     # GC
-    colorwheel[col:col+GC, 1] = 65535
-    colorwheel[col:col+GC, 2] = np.floor(65535*np.arange(0,GC)/GC)
+    colorwheel[col:col+GC, 1] = 255
+    colorwheel[col:col+GC, 2] = np.floor(255*np.arange(0,GC)/GC)
     col = col+GC
     # CB
-    colorwheel[col:col+CB, 1] = 65535 - np.floor(65535*np.arange(CB)/CB)
-    colorwheel[col:col+CB, 2] = 65535
+    colorwheel[col:col+CB, 1] = 255 - np.floor(255*np.arange(CB)/CB)
+    colorwheel[col:col+CB, 2] = 255
     col = col+CB
     # BM
-    colorwheel[col:col+BM, 2] = 65535
-    colorwheel[col:col+BM, 0] = np.floor(65535*np.arange(0,BM)/BM)
+    colorwheel[col:col+BM, 2] = 255
+    colorwheel[col:col+BM, 0] = np.floor(255*np.arange(0,BM)/BM)
     col = col+BM
     # MR
-    colorwheel[col:col+MR, 2] = 65535 - np.floor(65535*np.arange(MR)/MR)
-    colorwheel[col:col+MR, 0] = 65535
+    colorwheel[col:col+MR, 2] = 255 - np.floor(255*np.arange(MR)/MR)
+    colorwheel[col:col+MR, 0] = 255
     return colorwheel
 
 
@@ -355,15 +355,15 @@ def flow_uv_to_colors(u, v, convert_to_bgr=False):
     f = fk - k0
     for i in range(colorwheel.shape[1]):
         tmp = colorwheel[:,i]
-        col0 = tmp[k0] / 65535.0
-        col1 = tmp[k1] / 65535.0
+        col0 = tmp[k0] / 255.0
+        col1 = tmp[k1] / 255.0
         col = (1-f)*col0 + f*col1
         idx = (rad <= 1)
         col[idx] = 1 - rad[idx] * (1-col[idx])
         col[~idx] = col[~idx] * 0.75   # out of range
         # Note the 2-i => BGR instead of RGB
         ch_idx = 2-i if convert_to_bgr else i
-        flow_image[:, :, ch_idx] = np.floor(65535 * col)
+        flow_image[:, :, ch_idx] = np.floor(255 * col)
     return flow_image
 
 
