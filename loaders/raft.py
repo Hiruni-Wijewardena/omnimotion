@@ -85,7 +85,7 @@ class RAFTExhaustiveDataset(Dataset):
         flow_file = os.path.join(self.flow_dir, '{}_{}.npy'.format(img_name1, img_name2))
         flow = np.load(flow_file)
         mask_file = flow_file.replace('raft_exhaustive', 'raft_masks').replace('.npy', '.png')
-        masks = imageio.imread(mask_file) / 255.
+        masks = imageio.imread(mask_file) / 65535.
 
         coord1 = self.grid
         coord2 = self.grid + flow

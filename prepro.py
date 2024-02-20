@@ -56,7 +56,7 @@ def histeq(img):
 def filter_images(frames_list, kernel,blue_lower,blue_upper):
     filtered_frames = []
     for frame in frames_list:
-        image2=np.zeros(frame.shape,dtype=np.uint8)
+        image2=np.zeros(frame.shape,dtype=np.uint16)
         blue_mask = (frame[:, :, 0] >= blue_lower) & (frame[:, :, 0] <= blue_upper)
         image2[blue_mask] = [0, 0, 65535]
         filtered_frames.append(cv2.filter2D(image2, -1, kernel))

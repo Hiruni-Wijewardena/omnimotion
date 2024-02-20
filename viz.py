@@ -89,7 +89,7 @@ if __name__ == '__main__':
     if os.path.exists(args.foreground_mask_path):
         h, w = trainer.h, trainer.w
         mask = imageio.imread(args.foreground_mask_path)[..., -1]  # rgba image, take the alpha channel
-        mask = cv2.resize(mask, dsize=(w, h)) == 255
+        mask = cv2.resize(mask, dsize=(w, h)) == 65535
 
     # for DAVIS video sequences which come with segmentation masks
     # or when a foreground mask for the query frame is provided
