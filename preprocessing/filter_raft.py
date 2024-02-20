@@ -52,7 +52,7 @@ def run_filtering(args):
                 for img_file in img_files]
 
     flow_stats = {}
-    count_maps = np.zeros((num_imgs, h, w), dtype=np.int32)
+    count_maps = np.zeros((num_imgs, h, w), dtype=np.uint16)
     for i in range(num_imgs):
         imgname_i = os.path.basename(img_files[i])
         feature_i = features[i].permute(2, 0, 1)[None]
@@ -97,12 +97,12 @@ def run_filtering(args):
                 mask_occluded = torch.zeros_like(mask_cycle)
 
             out_mask = torch.stack([mask_cycle, mask_occluded, torch.zeros_like(mask_cycle)], dim=-1).cpu().numpy()
-            imageio.imwrite('{}/{}_{}.png'.format(out_dir, imgname_i, imgname_j), (65535 * out_mask.astype(np.int32)))
+            imageio.imwrite('{}/{}_{}.png'.format(out_dir, imgname_i, imgname_j), (65535 * out_mask.astype(np.uint16)))
 
             if not imgname_i in flow_stats.keys():
                 flow_stats[imgname_i] = {}
             flow_stats[imgname_i][imgname_j] = np.sum(out_mask).item()
-            count_maps[i] += out_mask.sum(axis=-1).astype(np.int32)
+            count_maps[i] += out_mask.sum(axis=-1).astype(np.uint16)
             pbar.update(1)
 
     pbar.close()
