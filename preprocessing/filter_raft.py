@@ -21,7 +21,6 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from chain_raft import gen_grid, normalize_coords
 import warnings
-from PIL import Image
 
 warnings.filterwarnings("ignore")
 
@@ -98,8 +97,7 @@ def run_filtering(args):
                 mask_occluded = torch.zeros_like(mask_cycle)
 
             out_mask = torch.stack([mask_cycle, mask_occluded, torch.zeros_like(mask_cycle)], dim=-1).cpu().numpy()
-            Image.fromarray((65535 * out_mask.astype(np.uint16)).astype(np.uint16)).save('{}/{}_{}.png'.format(out_dir, imgname_i, imgname_j))
-            # imageio.imsave('{}/{}_{}.png'.format(out_dir, imgname_i, imgname_j), (65535 * out_mask.astype(np.uint16)))
+            imageio.imwrite('{}/{}_{}.png'.format(out_dir, imgname_i, imgname_j), (255 * out_mask.astype(np.uint8)))
 
             if not imgname_i in flow_stats.keys():
                 flow_stats[imgname_i] = {}
