@@ -976,6 +976,7 @@ class BaseTrainer():
                                      video_correspondences)
                 color_frames, depth_frames = self.render_color_and_depth_videos(0, self.num_imgs,
                                                                                 chunk_size=self.args.chunk_size)
+                print(color_frames.shape, depth_frames.shape,color_frames[0].dtype, depth_frames[0].dtype)
                 imageio.mimwrite(os.path.join(vis_dir, '{}_depth_{:06d}.avi'.format(self.seq_name, step)), depth_frames)
                 print("Finish writing depth video")
                 imageio.mimwrite(os.path.join(vis_dir, '{}_color_{:06d}.avi'.format(self.seq_name, step)), color_frames)
