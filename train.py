@@ -68,7 +68,7 @@ def train(args):
                                               generator=g,
                                               num_workers=args.num_workers,
                                               sampler=data_sampler,
-                                              shuffle=True if data_sampler is None else False,
+                                              shuffle=False,
                                               pin_memory=True)
 
     # get trainer
