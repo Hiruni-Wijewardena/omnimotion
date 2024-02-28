@@ -16,6 +16,7 @@ def load_image4(imfile):
     img= Image.fromarray(img)
     img = Image.merge("RGB", (img, img, img))
     img= np.array(img)
+    return img
    
     
     return img
