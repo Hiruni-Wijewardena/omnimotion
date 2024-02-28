@@ -103,6 +103,7 @@ class BaseTrainer():
         self.seq_name = os.path.basename(self.seq_dir.rstrip('/'))
         self.img_dir = os.path.join(self.seq_dir, 'color')
         self.psf_path = './psf_3D-NA0_4-dx1_1um-21_21_35.pt'
+        print("#####################",self.psf_path)
 
         psf_file = torch.load(self.psf_path, map_location=self.device)
         self.psf = (psf_file.abs()**2).sum(dim= 0)
