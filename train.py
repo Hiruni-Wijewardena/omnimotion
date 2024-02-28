@@ -78,16 +78,19 @@ def train(args):
     step = start_step
     epoch = 0
     while step < args.num_iters + start_step + 1:
-        for batch in data_loader:
-            trainer.train_one_step(step, batch)
-            trainer.log(writer, step)
+        for id,batch in data_loader:
+            if id==start_step:
+                trainer.train_one_step(step, batch)
+                trainer.log(writer, step)
 
-            step += 1
+                step += 1
 
-            dataset.set_max_interval(args.start_interval + step // 2000)
+                dataset.set_max_interval(args.start_interval + step // 2000)
 
-            if step >= args.num_iters + start_step + 1:
-                break
+                if step >= args.num_iters + start_step + 1:
+                    break
+            else:
+                continue
 
         epoch += 1
         if args.distributed:
