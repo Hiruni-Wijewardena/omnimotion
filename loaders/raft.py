@@ -5,10 +5,20 @@ import imageio
 import numpy as np
 import cv2
 import torch
+import random
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 import multiprocessing as mp
 from util import normalize_coords, gen_grid_np
+from PIL import Image
+
+def load_image4(imfile):
+    img = np.array(Image.open(imfile)).astype(np.uint8)
+    img= Image.fromarray(img)
+    img = Image.merge("RGB", (img, img, img))
+    img= np.array(img)
+    
+    return img
 
 
 def get_sample_weights(flow_stats):
@@ -28,18 +38,22 @@ class RAFTExhaustiveDataset(Dataset):
         self.seq_name = os.path.basename(self.seq_dir.rstrip('/'))
         self.img_dir = os.path.join(self.seq_dir, 'color')
         self.flow_dir = os.path.join(self.seq_dir, 'raft_exhaustive')
-        img_names = sorted(os.listdir(self.img_dir))
+        #img_names = sorted(os.listdir(self.img_dir))
+        img_names = sorted([i for i in os.listdir(self.img_dir) if i[0] != '.'])
         self.num_imgs = min(self.args.num_imgs, len(img_names))
         self.img_names = img_names[:self.num_imgs]
 
-        h, w, _ = imageio.imread(os.path.join(self.img_dir, img_names[0])).shape
+        h, w, _ = load_image4(os.path.join(self.img_dir, img_names[0])).shape
         self.h, self.w = h, w
         max_interval = self.num_imgs - 1 if not max_interval else max_interval
         self.max_interval = mp.Value('i', max_interval)
         self.num_pts = self.args.num_pts
+        #-----------------------------------------------------------------------------------
+        self.num_pairs = self.args.num_pairs
         self.grid = gen_grid_np(self.h, self.w)
         flow_stats = json.load(open(os.path.join(self.seq_dir, 'flow_stats.json')))
         self.sample_weights = get_sample_weights(flow_stats)
+     
 
     def __len__(self):
         return self.num_imgs * 100000
@@ -52,6 +66,8 @@ class RAFTExhaustiveDataset(Dataset):
         self.max_interval.value = min(curr_max_interval + increment, self.num_imgs - 1)
 
     def __getitem__(self, idx):
+        
+        
         cached_flow_pred_dir = os.path.join('out', '{}_{}'.format(self.args.expname, self.seq_name), 'flow')
         cached_flow_pred_files = sorted(glob.glob(os.path.join(cached_flow_pred_dir, '*')))
         flow_error_file = os.path.join(os.path.dirname(cached_flow_pred_dir), 'flow_error.txt')
@@ -62,6 +78,7 @@ class RAFTExhaustiveDataset(Dataset):
         else:
             id1 = idx % self.num_imgs
 
+        
         img_name1 = self.img_names[id1]
         max_interval = min(self.max_interval.value, self.num_imgs - 1)
         img2_candidates = sorted(list(self.sample_weights[img_name1].keys()))
@@ -79,8 +96,8 @@ class RAFTExhaustiveDataset(Dataset):
         frame_interval = abs(id1 - id2)
 
         # read image, flow and confidence
-        img1 = imageio.imread(os.path.join(self.img_dir, img_name1)) / 255.
-        img2 = imageio.imread(os.path.join(self.img_dir, img_name2)) / 255.
+        img1 = load_image4(os.path.join(self.img_dir, img_name1)) / 255.
+        img2 = load_image4(os.path.join(self.img_dir, img_name2)) / 255.
 
         flow_file = os.path.join(self.flow_dir, '{}_{}.npy'.format(img_name1, img_name2))
         flow = np.load(flow_file)
@@ -93,61 +110,44 @@ class RAFTExhaustiveDataset(Dataset):
         cycle_consistency_mask = masks[..., 0] > 0
         occlusion_mask = masks[..., 1] > 0
 
-        if frame_interval == 1:
-            mask = np.ones_like(cycle_consistency_mask)
-        else:
-            mask = cycle_consistency_mask | occlusion_mask
+#-------------------------------------------------------------------------------------------------  
+        block_len = (self.num_pts**0.5) #num_pts = 1024   
+        h_blocks = self.h//block_len #25   #50
+        w_blocks = self.w//block_len #24  #49
+        num_blocks = (h_blocks)*(w_blocks) #600   #2450
 
+        block_num = random.randint(0, num_blocks)
+        x_range = ((block_num%w_blocks)*block_len , ((block_num%w_blocks)+1)*block_len)
+        y_range = ((block_num//w_blocks)*block_len , ((block_num//w_blocks)+1)*block_len)
+        x, y = np.meshgrid(np.arange(self.w), np.arange(self.h))
+        mask = np.logical_and.reduce((x >= x_range[0], x < x_range[1], y >= y_range[0], y < y_range[1]))
+        
         if mask.sum() == 0:
+            print('zero')
             invalid = True
             mask = np.ones_like(cycle_consistency_mask)
         else:
             invalid = False
+        
+        
 
-        if len(cached_flow_pred_files) > 0 and self.args.use_error_map:
-            cached_flow_pred_file = cached_flow_pred_files[id1]
-            assert img_name1 + '_' in cached_flow_pred_file
-            sup_flow_file = os.path.join(self.flow_dir, os.path.basename(cached_flow_pred_file))
-            pred_flow = np.load(cached_flow_pred_file)
-            sup_flow = np.load(sup_flow_file)
-            error_map = np.linalg.norm(pred_flow - sup_flow, axis=-1)
-            error_map = cv2.GaussianBlur(error_map, (5, 5), 0)
-            error_selected = error_map[mask]
-            prob = error_selected / np.sum(error_selected)
-            select_ids_error = np.random.choice(mask.sum(), self.num_pts, replace=(mask.sum() < self.num_pts), p=prob)
-            select_ids_random = np.random.choice(mask.sum(), self.num_pts, replace=(mask.sum() < self.num_pts))
-            select_ids = np.random.choice(np.concatenate([select_ids_error, select_ids_random]), self.num_pts,
-                                          replace=False)
-        else:
-            if self.args.use_count_map:
-                count_map = imageio.imread(os.path.join(self.seq_dir, 'count_maps', img_name1.replace('.jpg', '.png')))
-                pixel_sample_weight = 1 / np.sqrt(count_map + 1.)
-                pixel_sample_weight = pixel_sample_weight[mask]
-                pixel_sample_weight /= pixel_sample_weight.sum()
-                select_ids = np.random.choice(mask.sum(), self.num_pts, replace=(mask.sum() < self.num_pts),
-                                              p=pixel_sample_weight)
-            else:
-                select_ids = np.random.choice(mask.sum(), self.num_pts, replace=(mask.sum() < self.num_pts))
-
+        
         pair_weight = np.cos((frame_interval - 1.) / max_interval * np.pi / 2)
 
-        pts1 = torch.from_numpy(coord1[mask][select_ids]).float()
-        pts2 = torch.from_numpy(coord2[mask][select_ids]).float()
+        pts1 = torch.from_numpy(coord1[mask]).float()
+        pts2 = torch.from_numpy(coord2[mask]).float()
         pts2_normed = normalize_coords(pts2, self.h, self.w)[None, None]
 
-        covisible_mask = torch.from_numpy(cycle_consistency_mask[mask][select_ids]).float()[..., None]
+        covisible_mask = torch.from_numpy(cycle_consistency_mask[mask]).float()[..., None]
         weights = torch.ones_like(covisible_mask) * pair_weight
 
-        gt_rgb1 = torch.from_numpy(img1[mask][select_ids]).float()
+        gt_rgb1 = torch.from_numpy(img1[mask]).float()
         gt_rgb2 = F.grid_sample(torch.from_numpy(img2).float().permute(2, 0, 1)[None], pts2_normed,
                                 align_corners=True).squeeze().T
 
         if invalid:
             weights = torch.zeros_like(weights)
 
-        if np.random.choice([0, 1]):
-            id1, id2, pts1, pts2, gt_rgb1, gt_rgb2 = id2, id1, pts2, pts1, gt_rgb2, gt_rgb1
-            weights[covisible_mask == 0.] = 0
 
         data = {'ids1': id1,
                 'ids2': id2,
