@@ -440,6 +440,7 @@ class BaseTrainer():
         gt_rgb1 = batch['gt_rgb1'].to(self.device)
         weights = batch['weights'].to(self.device)
         num_pts = px1s.shape[1]
+        num_pairs = px1s.shape[0]
 
         # [n_pair, n_pts, n_samples, 3]
         x1s_samples, px1s_depths_samples = self.sample_3d_pts_for_pixels(px1s, return_depth=True, det=False)
@@ -447,7 +448,30 @@ class BaseTrainer():
         out = self.get_blending_weights(x1s_canonical_samples)
         blending_weights1 = out['weights']
         alphas1 = out['alphas']
-        pred_rgb1 = out['rendered_rgbs']
+        #pred_rgb1 = out['rendered_rgbs']
+        color = out['colors']
+
+        d_volume_coords = torch.cat([px1s.unsqueeze(2).repeat(1, 1, 32, 1), px1s_depths_samples*15.5], dim=3)
+        coords = d_volume_coords.long()
+        
+        x_range = [torch.min(px1s, axis=1)[0][:,0],torch.max(px1s, axis=1)[0][:,0]]
+        y_range = [torch.min(px1s, axis=1)[0][:,1],torch.max(px1s, axis=1)[0][:,1]]
+        x, y = np.meshgrid(np.arange(self.w), np.arange(self.h))
+        
+        pred_rgbs = []
+        for i in range(num_pairs):
+            x_range_i = (int(x_range[0][i]), int(x_range[1][i]))
+            y_range_i = (int(y_range[0][i]), int(y_range[1][i]))
+            gt_rgb_i = gt_rgb1[i,:,:]
+            psf_tensor = torch.zeros((self.h, self.w, 32), device=self.device)
+            psf_tensor[coords[i, :, :, 1], coords[i, :, :, 0], coords[i, :, :, 2]] += color[i,:,:,0]
+            lvolume_i = psf_tensor [y_range_i[0]: y_range_i[1]+1,x_range_i[0]: x_range_i[1]+1,:].unsqueeze(0).unsqueeze(0)
+            kernel = self.psf.unsqueeze(0).unsqueeze(0)
+            convolve_tensor =  F.conv3d(lvolume_i, kernel, padding='same')
+            pred_rgb_i = convolve_tensor.squeeze(0).squeeze(0)[:,:,15].flatten()
+            norm_pred_rgb_i =(pred_rgb_i-torch.min(pred_rgb_i))/(torch.max(pred_rgb_i)-torch.min(pred_rgb_i))
+            pred_rgbs.append(norm_pred_rgb_i.unsqueeze(-1).repeat(1,3))
+        pred_rgb1 = torch.stack(pred_rgbs,dim=0)
 
         mask = (x2s_proj_samples[..., -1] >= depth_min_th) * (x2s_proj_samples[..., -1] <= depth_max_th)
         blending_weights1 = blending_weights1 * mask.float()
@@ -458,11 +482,11 @@ class BaseTrainer():
         px2s_proj, px2s_proj_depths = self.project(x2s_pred, return_depth=True)
 
         mask = self.get_in_range_mask(px2s_proj, max_padding)
-        rgb_mask = self.get_in_range_mask(px1s)
+        #rgb_mask = self.get_in_range_mask(px1s)
 
         if mask.sum() > 0:
-            loss_rgb = F.mse_loss(pred_rgb1[rgb_mask], gt_rgb1[rgb_mask])
-            loss_rgb_grad = self.gradient_loss(pred_rgb1[rgb_mask], gt_rgb1[rgb_mask])
+            loss_rgb = F.mse_loss(pred_rgb1, gt_rgb1)
+            loss_rgb_grad = self.gradient_loss(pred_rgb1, gt_rgb1)
 
             optical_flow_loss = masked_l1_loss(px2s_proj[mask], px2s[mask], weights[mask], normalize=False)
             optical_flow_grad_loss = self.gradient_loss(px2s_proj[mask], px2s[mask], weights[mask])
