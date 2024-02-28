@@ -74,10 +74,10 @@ def train(args):
     # get trainer
     trainer = BaseTrainer(args)
 
-    start_step = trainer.step 
+    start_step = trainer.step +1
     step = start_step
     epoch = 0
-    while step < args.num_iters + start_step:
+    while step < args.num_iters + start_step +1:
         for id,batch in enumerate(data_loader):
             if id==step:
                 trainer.train_one_step(step, batch)
@@ -87,7 +87,7 @@ def train(args):
 
                 dataset.set_max_interval(args.start_interval + step // 2000)
 
-                if step >= args.num_iters + start_step:
+                if step >= args.num_iters + start_step + 1:
                     break
             else:
                 continue
