@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from PIL import Image
 
 import util
 from criterion import masked_mse_loss, masked_l1_loss, compute_depth_range_loss, lossfun_distortion
@@ -19,6 +20,11 @@ from kornia import morphology as morph
 
 torch.manual_seed(1234)
 
+def load_image4(imfile):
+    img = np.array(Image.open(imfile)).astype(np.uint8)
+    img= Image.fromarray(img)
+    img = Image.merge("RGB", (img, img, img))
+    img= np.array(img)
 
 def init_weights(m):
     # Initializes weights according to the DCGAN paper
@@ -102,12 +108,17 @@ class BaseTrainer():
         self.seq_dir = self.args.data_dir
         self.seq_name = os.path.basename(self.seq_dir.rstrip('/'))
         self.img_dir = os.path.join(self.seq_dir, 'color')
+        self.psf_path = os.path.join(self.seq_dir, 'psf_3D-NA0_4-dx1_1um-21_21_35.pt')
+
+        psf_file = torch.load(self.psf_path, map_location=self.device)
+        self.psf = (psf_file.abs()**2).sum(dim= 0)
 
         img_files = sorted(glob.glob(os.path.join(self.img_dir, '*')))
         self.num_imgs = min(self.args.num_imgs, len(img_files))
         self.img_files = img_files[:self.num_imgs]
 
-        images = np.array([imageio.imread(img_file) / 255. for img_file in self.img_files])
+        #images = np.array([imageio.imread(img_file) / 255. for img_file in self.img_files])
+        images = np.array([load_image4(img_file) / 255. for img_file in self.img_files])
         self.images = torch.from_numpy(images).float()  # [n_imgs, h, w, 3]
         self.h, self.w = self.images.shape[1:3]
 
