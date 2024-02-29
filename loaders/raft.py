@@ -15,7 +15,7 @@ from PIL import Image
 def load_image4(imfile):
     img = np.array(Image.open(imfile)).astype(np.uint8)
     img= Image.fromarray(img)
-    img = Image.merge("RGB", (img, img, img))
+    #img = Image.merge("RGB", (img, img, img))
     img= np.array(img)
     
     return img
@@ -116,7 +116,7 @@ class RAFTExhaustiveDataset(Dataset):
         w_blocks = self.w//block_len #24  #49
         num_blocks = (h_blocks)*(w_blocks) #600   #2450
 
-        block_num = random.randint(0, num_blocks)
+        block_num = random.randint(0, num_blocks-1)
         x_range = ((block_num%w_blocks)*block_len , ((block_num%w_blocks)+1)*block_len)
         y_range = ((block_num//w_blocks)*block_len , ((block_num//w_blocks)+1)*block_len)
         x, y = np.meshgrid(np.arange(self.w), np.arange(self.h))

@@ -24,8 +24,8 @@ def config_parser():
     parser.add_argument('--dataset_types', type=str, default='flow', help='only flow is included in the current version')
     parser.add_argument('--dataset_weights', nargs='+', type=float, default=[1.], help='the weight for each dataset')
     parser.add_argument('--num_imgs', type=int, default=250, help='max number of images to train')
-    parser.add_argument('--num_pairs', type=int, default=8, help='# image pairs to sample in each batch')
-    parser.add_argument('--num_pts', type=int, default=256, help='# pts to sample from each pair of images')
+    parser.add_argument('--num_pairs', type=int, default=2, help='# image pairs to sample in each batch')
+    parser.add_argument('--num_pts', type=int, default=1024, help='# pts to sample from each pair of images')
 
     # lr
     parser.add_argument('--lr_feature', type=float, default=1e-3, help='learning rate for feature mlp')
