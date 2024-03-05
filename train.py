@@ -12,6 +12,7 @@ from tensorboardX import SummaryWriter
 from loaders.create_training_dataset import get_training_dataset
 from trainer import BaseTrainer
 torch.manual_seed(1234)
+import gc
 
 
 def synchronize():
@@ -88,7 +89,8 @@ def train(args):
 
             if step >= args.num_iters + start_step + 1:
                 break
-
+        torch.cuda.empty_cache()
+        gc.collect()
         epoch += 1
         if args.distributed:
             data_sampler.set_epoch(epoch)
