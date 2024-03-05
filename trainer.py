@@ -531,7 +531,7 @@ class BaseTrainer():
 
         if step % 10 == 0:
             psf_loss=self.calc_psf_loss(ids1[0])
-
+        print("Step,PSF_loss: ",step,psf_loss)
         loss = optical_flow_loss + \
                w_rgb * (loss_rgb + loss_rgb_grad) + \
                w_depth_range * depth_range_loss + \
