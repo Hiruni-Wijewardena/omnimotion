@@ -549,7 +549,7 @@ class BaseTrainer():
             self.scalars_to_log['{}/loss_scene_flow_smoothness'.format(log_prefix)] = scene_flow_smoothness_loss.item()
             self.scalars_to_log['{}/loss_canonical_unit_sphere'.format(log_prefix)] = canonical_unit_sphere_loss.item()
             self.scalars_to_log['{}/loss_flow_gradient'.format(log_prefix)] = optical_flow_grad_loss.item()
-            self.scalars_to_log['{}/loss_psf'.format(log_prefix)] = psf_loss.item()
+            self.scalars_to_log['{}/loss_psf'.format(log_prefix)] = psf_loss
 
         data = {'ids1': ids1,
                 'ids2': ids2,
