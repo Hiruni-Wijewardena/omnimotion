@@ -459,7 +459,6 @@ class BaseTrainer():
         return F.mse_loss( img.to(self.device),fr.squeeze(-1) )
     
     def compute_all_losses(self,
-                           step,
                            batch,
                            w_rgb=1,
                            w_depth_range=10,
@@ -587,12 +586,17 @@ class BaseTrainer():
         w_flow_grad = self.weight_scheduler(step, 0, 1./500000, 0, 0.1)
         w_distortion = self.weight_scheduler(step, 40000, 1./2000, 0, 10)
         w_scene_flow_smooth = 20.
+        if step%10==0:
+            w_psf=0.01
+        else:
+            w_psf=0.0
 
-        loss, flow_data = self.compute_all_losses(batch,step,
+        loss, flow_data = self.compute_all_losses(batch,
                                                   w_rgb=w_rgb,
                                                   w_scene_flow_smooth=w_scene_flow_smooth,
                                                   w_distortion=w_distortion,
                                                   w_flow_grad=w_flow_grad,
+                                                  w_psf=w_psf,
                                                   return_data=True)
 
         if torch.isnan(loss):
