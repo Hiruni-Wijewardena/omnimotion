@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import random
 
 import util
 from criterion import masked_mse_loss, masked_l1_loss, compute_depth_range_loss, lossfun_distortion
@@ -419,8 +420,46 @@ class BaseTrainer():
             weight_grad = None
         loss = masked_l1_loss(pred_grad, gt_grad, weight_grad)
         return loss
+    def convert_coords(self,chunk_w,chunk_h):
+        #[n_img,n_pts,2]
+        #not normalized
+        xx,yy=torch.meshgrid(chunk_w,chunk_h)
+        return torch.stack((xx.flatten(), yy.flatten()), dim=1).unsqueeze(0).to(self.device)
+    
+    def convolution_3d(self,psf_3d,frame=15):
+        tensor_out = torch.nn.functional.conv3d(psf_3d.unsqueeze(0).unsqueeze(0), self.psf[:,:,1:33].unsqueeze(0).unsqueeze(0))
+        return tensor_out.squeeze(0).squeeze(0)
+    
+    def calc_psf_loss(self,img_id):
+        # define a colour cube shape 64 x 64 x 32
+        color_cube=torch.zeros((64,64,32)).to(self.device)
+        # get a random block in the given image
+        rand_h=random.randint(0,self.h-64)
+        rand_w=random.randint(0,self.w-64)
+        input_h=torch.arange(rand_h,rand_h+64)
+        input_w=torch.arange(rand_w,rand_w+64)
+        tensor=self.convert_coords(input_w,input_h)
+       
+        pixels_shape=tensor.shape
+        n_tensor=util.normalize_coords(tensor,self.h,self.w)
+        
+        depths = torch.linspace(self.args.min_depth, self.args.max_depth,self.args.num_samples_ray,device=self.device)[None, None, :].expand(*pixels_shape[:2], -1)[..., None]
+        x1_samp=torch.cat([n_tensor.unsqueeze(-2).expand(-1, -1, self.args.num_samples_ray, -1), depths], dim=-1)
 
+        x1_canonical = self.get_prediction_one_way(x1_samp, img_id).detach()
+        color,density=self.get_canonical_color_and_density(x1_canonical,apply_contraction=True)
+        
+        coords = torch.cat([tensor.unsqueeze(-2).expand(-1, -1, self.args.num_samples_ray, -1), (depths*15.5)], dim=3).reshape((4096*32,3)).long().to(self.device)-torch.tensor([rand_w,rand_h,0],device=tensor.device)
+        color=color[:,:,:,0].reshape(-1)
+        color_cube[coords[:, 1], coords[:, 0], coords[:, 2]] = color[:]
+        fr=self.convolution_3d(color_cube)
+       
+        img= self.images[img_id]
+        img=img[rand_h+10:rand_h+54,rand_w+10:rand_w+54,0]
+        return F.mse_loss( img.to(self.device),fr.squeeze(-1) )
+    
     def compute_all_losses(self,
+                           step,
                            batch,
                            w_rgb=1,
                            w_depth_range=10,
@@ -428,6 +467,7 @@ class BaseTrainer():
                            w_scene_flow_smooth=10.,
                            w_canonical_unit_sphere=0.,
                            w_flow_grad=0.01,
+                           w_psf=0.01,
                            write_logs=True,
                            return_data=False,
                            log_prefix='loss',
@@ -487,6 +527,10 @@ class BaseTrainer():
 
         # loss for mapped points to stay within canonical sphere
         canonical_unit_sphere_loss = self.canonical_sphere_loss(x1s_canonical_samples)
+        psf_loss=0.0
+
+        if step % 100 == 0:
+            psf_loss=self.calc_psf_loss(ids1[0])
 
         loss = optical_flow_loss + \
                w_rgb * (loss_rgb + loss_rgb_grad) + \
@@ -494,6 +538,7 @@ class BaseTrainer():
                w_distortion * distortion_loss + \
                w_scene_flow_smooth * scene_flow_smoothness_loss + \
                w_canonical_unit_sphere * canonical_unit_sphere_loss + \
+               w_psf * psf_loss + \
                w_flow_grad * optical_flow_grad_loss
 
         if write_logs:
@@ -505,6 +550,7 @@ class BaseTrainer():
             self.scalars_to_log['{}/loss_scene_flow_smoothness'.format(log_prefix)] = scene_flow_smoothness_loss.item()
             self.scalars_to_log['{}/loss_canonical_unit_sphere'.format(log_prefix)] = canonical_unit_sphere_loss.item()
             self.scalars_to_log['{}/loss_flow_gradient'.format(log_prefix)] = optical_flow_grad_loss.item()
+            self.scalars_to_log['{}/loss_psf'.format(log_prefix)] = psf_loss.item()
 
         data = {'ids1': ids1,
                 'ids2': ids2,
@@ -542,7 +588,7 @@ class BaseTrainer():
         w_distortion = self.weight_scheduler(step, 40000, 1./2000, 0, 10)
         w_scene_flow_smooth = 20.
 
-        loss, flow_data = self.compute_all_losses(batch,
+        loss, flow_data = self.compute_all_losses(batch,step,
                                                   w_rgb=w_rgb,
                                                   w_scene_flow_smooth=w_scene_flow_smooth,
                                                   w_distortion=w_distortion,
