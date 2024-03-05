@@ -452,7 +452,7 @@ class BaseTrainer():
         blending_weights1 = out['weights']
         alphas1 = out['alphas']
         pred_rgb1 = out['rendered_rgbs']
-        print(ids1,ids2)
+        
 
         mask = (x2s_proj_samples[..., -1] >= depth_min_th) * (x2s_proj_samples[..., -1] <= depth_max_th)
         blending_weights1 = blending_weights1 * mask.float()
