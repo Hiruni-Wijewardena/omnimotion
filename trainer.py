@@ -530,14 +530,14 @@ class BaseTrainer():
 
         if w_psf> 0:
             psf_loss=self.calc_psf_loss(ids1[0])
-        print("Step,PSF_loss: ",psf_loss)
+        
         loss = optical_flow_loss + \
                w_rgb * (loss_rgb + loss_rgb_grad) + \
                w_depth_range * depth_range_loss + \
                w_distortion * distortion_loss + \
                w_scene_flow_smooth * scene_flow_smoothness_loss + \
                w_canonical_unit_sphere * canonical_unit_sphere_loss + \
-                1* psf_loss + \
+                w_psf* psf_loss + \
                w_flow_grad * optical_flow_grad_loss
 
         if write_logs:
