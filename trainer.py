@@ -529,7 +529,7 @@ class BaseTrainer():
         canonical_unit_sphere_loss = self.canonical_sphere_loss(x1s_canonical_samples)
         psf_loss=0.0
 
-        if step % 100 == 0:
+        if step % 10 == 0:
             psf_loss=self.calc_psf_loss(ids1[0])
 
         loss = optical_flow_loss + \
