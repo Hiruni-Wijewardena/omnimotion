@@ -23,7 +23,7 @@ torch.manual_seed(1234)
 def load_image4(imfile):
     img = np.array(Image.open(imfile)).astype(np.uint8)
     img= Image.fromarray(img)
-    img = Image.merge("RGB", (img, img, img))
+    #img = Image.merge("RGB", (img, img, img))
     img= np.array(img)
     return img
 
@@ -284,6 +284,7 @@ class BaseTrainer():
         rendered_rgbs = torch.sum(weights.unsqueeze(-1) * color, dim=-2)  # [n_imgs, n_pts, 3]
 
         out = {'colors': color,
+               'densities': density,
                'weights': weights,
                'alphas': alpha,
                'rendered_rgbs': rendered_rgbs,
@@ -462,23 +463,19 @@ class BaseTrainer():
         blending_weights1 = out['weights']
         alphas1 = out['alphas']
         #pred_rgb1 = out['rendered_rgbs']
-        color = out['colors']
+        color = out['densities'].unsqueeze(-1)
+        #print(color.shape,"-------------------------------------------------------------")
 
-        d_volume_coords = torch.cat([px1s.unsqueeze(2).repeat(1, 1, 32, 1), px1s_depths_samples*15.5], dim=3)
-        coords = d_volume_coords.long()
+#         d_volume_coords = torch.cat([px1s.unsqueeze(2).repeat(1, 1, 32, 1), px1s_depths_samples*15.5], dim=3)
+#         coords = d_volume_coords.long()
         
-        x_range = [torch.min(px1s, axis=1)[0][:,0],torch.max(px1s, axis=1)[0][:,0]]
-        y_range = [torch.min(px1s, axis=1)[0][:,1],torch.max(px1s, axis=1)[0][:,1]]
-        x, y = np.meshgrid(np.arange(self.w), np.arange(self.h))
+#         x_range = [torch.min(px1s, axis=1)[0][:,0],torch.max(px1s, axis=1)[0][:,0]]
+#         y_range = [torch.min(px1s, axis=1)[0][:,1],torch.max(px1s, axis=1)[0][:,1]]
+#         x, y = np.meshgrid(np.arange(self.w), np.arange(self.h))
         
         pred_rgbs = []
         for i in range(num_pairs):
-            x_range_i = (int(x_range[0][i]), int(x_range[1][i]))
-            y_range_i = (int(y_range[0][i]), int(y_range[1][i]))
-            gt_rgb_i = gt_rgb1[i,:,:]
-            psf_tensor = torch.zeros((self.h, self.w, 32), device=self.device)
-            psf_tensor[coords[i, :, :, 1], coords[i, :, :, 0], coords[i, :, :, 2]] += color[i,:,:,0]
-            lvolume_i = psf_tensor [y_range_i[0]: y_range_i[1]+1,x_range_i[0]: x_range_i[1]+1,:].unsqueeze(0).unsqueeze(0)
+            lvolume_i = color[i,:,:,0].unsqueeze(0).unsqueeze(0).reshape(1,1,32,32,32)
             kernel = self.psf.unsqueeze(0).unsqueeze(0)
             convolve_tensor =  F.conv3d(lvolume_i, kernel, padding='same')
             pred_rgb_i = convolve_tensor.squeeze(0).squeeze(0)[:,:,15].flatten()
@@ -500,6 +497,7 @@ class BaseTrainer():
         if mask.sum() > 0:
             loss_rgb = F.mse_loss(pred_rgb1, gt_rgb1)
             loss_rgb_grad = self.gradient_loss(pred_rgb1, gt_rgb1)
+            #loss_rgb = loss_rgb_grad =  torch.tensor(0.)
 
             optical_flow_loss = masked_l1_loss(px2s_proj[mask], px2s[mask], weights[mask], normalize=False)
             optical_flow_grad_loss = self.gradient_loss(px2s_proj[mask], px2s[mask], weights[mask])
@@ -540,16 +538,44 @@ class BaseTrainer():
 
         data = {'ids1': ids1,
                 'ids2': ids2,
-                'x1s': x1s_samples,
-                'x2s_pred': x2s_pred,
-                'xs_canonical': x1s_canonical_samples,
-                'mask': mask,
-                'px2s_proj': px2s_proj,
-                'px2s_proj_depths': px2s_proj_depths,
-                'blending_weights': blending_weights1,
-                'alphas': alphas1,
+                'loss_rgb': loss_rgb,
+                'opticalflow_loss':optical_flow_loss,
+                'loss_rgb_grad': loss_rgb_grad,
+                'depth_range_loss':depth_range_loss,
+                'distortion_loss': distortion_loss,
+                'scene_flow_smoothness_loss': scene_flow_smoothness_loss,
+                'canonical_unit_sphere_loss': canonical_unit_sphere_loss,
+                'optical_flow_grad_loss': optical_flow_grad_loss,
+                'w_depth_range': w_depth_range,
+                'w_canonical_unit_sphere': w_canonical_unit_sphere,
+            
+                # 'x1s': x1s_samples,
+                # 'x2s_pred': x2s_pred,
+                # 'xs_canonical': x1s_canonical_samples,
+                # 'mask': mask,
+                # 'px2s_proj': px2s_proj,
+                # 'px2s_proj_depths': px2s_proj_depths,
+                # 'blending_weights': blending_weights1,
+                # 'alphas': alphas1,
+                
                 't': t
                 }
+        
+        try:
+            ss =  list(map(lambda x: str(round(x, 2)),[loss_rgb.item(),
+                  optical_flow_loss.item(), 
+                  loss_rgb_grad.item(),
+                  depth_range_loss.item(),
+                  distortion_loss.item(),
+                  scene_flow_smoothness_loss.item(),
+                  canonical_unit_sphere_loss.item(),
+                  optical_flow_grad_loss.item()]))
+        
+            with open('log_file.txt', 'a') as file:
+                    file.write(", ".join(ss) + '\n')
+        except:
+            pass
+        
         if return_data:
             return loss, data
         else:
@@ -569,7 +595,7 @@ class BaseTrainer():
         self.scalars_to_log = {}
 
         self.optimizer.zero_grad()
-        w_rgb = self.weight_scheduler(step, 0, 1./5000, 0, 10)
+        w_rgb = self.weight_scheduler(step, 0, 1./50000, 0, 10)
         w_flow_grad = self.weight_scheduler(step, 0, 1./500000, 0, 0.1)
         w_distortion = self.weight_scheduler(step, 40000, 1./2000, 0, 10)
         w_scene_flow_smooth = 20.
@@ -582,6 +608,7 @@ class BaseTrainer():
                                                   return_data=True)
 
         if torch.isnan(loss):
+            print("loss nan")
             pdb.set_trace()
 
         loss.backward()
@@ -589,14 +616,17 @@ class BaseTrainer():
         is_break = False
         for p in self.deform_mlp.parameters():
             if torch.isnan(p.data).any() or torch.isnan(p.grad).any():
+                print("deform mlp nan")
                 is_break = True
 
         for p in self.feature_mlp.parameters():
             if torch.isnan(p.data).any() or torch.isnan(p.grad).any():
+                print("feature mlp nan")
                 is_break = True
 
         for p in self.color_mlp.parameters():
             if torch.isnan(p.data).any() or torch.isnan(p.grad).any():
+                print("color mlp nan")
                 is_break = True
 
         if is_break:
