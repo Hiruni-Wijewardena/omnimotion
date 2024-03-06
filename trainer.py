@@ -529,10 +529,11 @@ class BaseTrainer():
         psf_loss=0.0
 
         if w_psf> 0:
-            psf_loss=self.calc_psf_loss(ids1[0])
+            psf_loss=self.calc_psf_loss(ids1[0])+self.calc_psf_loss(ids1[1])
+            psf_loss=psf_loss/2
         
         loss = optical_flow_loss + \
-               w_rgb * (loss_rgb + loss_rgb_grad) + \
+               0 * (loss_rgb + loss_rgb_grad) + \
                w_depth_range * depth_range_loss + \
                w_distortion * distortion_loss + \
                w_scene_flow_smooth * scene_flow_smoothness_loss + \
