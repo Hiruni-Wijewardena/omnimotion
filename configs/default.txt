@@ -2,8 +2,8 @@ expname = default
 data_dir = /home/qw246/data/davis/lab-coat  # specify the sequence directory
 
 # training
-num_pairs = 8
-num_pts = 256
+num_pairs = 2
+num_pts = 1024
 use_affine = True
 use_error_map = True
 use_count_map = True
