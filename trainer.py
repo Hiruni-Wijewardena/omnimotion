@@ -505,13 +505,13 @@ class BaseTrainer():
         rgb_mask = self.get_in_range_mask(px1s)
 
         if mask.sum() > 0:
-            loss_rgb = F.mse_loss(pred_rgb1[rgb_mask], gt_rgb1[rgb_mask])
-            loss_rgb_grad = self.gradient_loss(pred_rgb1[rgb_mask], gt_rgb1[rgb_mask])
+            # loss_rgb = F.mse_loss(pred_rgb1[rgb_mask], gt_rgb1[rgb_mask])
+            # loss_rgb_grad = self.gradient_loss(pred_rgb1[rgb_mask], gt_rgb1[rgb_mask])
 
             optical_flow_loss = masked_l1_loss(px2s_proj[mask], px2s[mask], weights[mask], normalize=False)
             optical_flow_grad_loss = self.gradient_loss(px2s_proj[mask], px2s[mask], weights[mask])
-        else:
-            loss_rgb = loss_rgb_grad = optical_flow_loss = optical_flow_grad_loss = torch.tensor(0.)
+        # else:
+        #     loss_rgb = loss_rgb_grad = optical_flow_loss = optical_flow_grad_loss = torch.tensor(0.)
 
         # mapped depth should be within the predefined range
         depth_range_loss = compute_depth_range_loss(px2s_proj_depth_samples, depth_min_th, depth_max_th)
@@ -533,7 +533,6 @@ class BaseTrainer():
             psf_loss=psf_loss/2
         
         loss = optical_flow_loss + \
-               0 * (loss_rgb + loss_rgb_grad) + \
                w_depth_range * depth_range_loss + \
                w_distortion * distortion_loss + \
                w_scene_flow_smooth * scene_flow_smoothness_loss + \
@@ -544,7 +543,7 @@ class BaseTrainer():
         if write_logs:
             self.scalars_to_log['{}/Loss'.format(log_prefix)] = loss.item()
             self.scalars_to_log['{}/loss_flow'.format(log_prefix)] = optical_flow_loss.item()
-            self.scalars_to_log['{}/loss_rgb'.format(log_prefix)] = loss_rgb.item()
+            # self.scalars_to_log['{}/loss_rgb'.format(log_prefix)] = loss_rgb.item()
             self.scalars_to_log['{}/loss_depth_range'.format(log_prefix)] = depth_range_loss.item()
             self.scalars_to_log['{}/loss_distortion'.format(log_prefix)] = distortion_loss.item()
             self.scalars_to_log['{}/loss_scene_flow_smoothness'.format(log_prefix)] = scene_flow_smoothness_loss.item()
