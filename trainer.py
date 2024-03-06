@@ -588,7 +588,7 @@ class BaseTrainer():
         w_distortion = self.weight_scheduler(step, 40000, 1./2000, 0, 10)
         w_scene_flow_smooth = 20.
         if step%10==0:
-            w_psf=0.01
+            w_psf=0.1
         else:
             w_psf=0.0
 
