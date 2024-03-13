@@ -266,8 +266,6 @@ class BaseTrainer():
         :param x_canonical: input canonical 3D locations
         :return: dict containing colors, weights, alphas and rendered rgbs
         '''
-        num_pairs = x_canonical.shape[0]
-        num_pts = x_canonical.shape[1]
         color, density = self.get_canonical_color_and_density(x_canonical)
 
         alpha = util.sigma2alpha(density)  # [n_imgs, n_pts, n_samples]
@@ -282,16 +280,8 @@ class BaseTrainer():
         T = torch.cat((torch.ones_like(T[..., 0:1]), T), dim=-1)  # [n_imgs, n_pts, n_samples]
 
         weights = alpha * T  # [n_imgs, n_pts, n_samples]
-        pred_rgbs = []
-        for i in range(num_pairs):
-            lvolume_i = color[i,:,:,0].unsqueeze(0).unsqueeze(0).reshape(1,1,num_pts**0.5,num_pts**0.5,32)
-            kernel = self.psf.unsqueeze(0).unsqueeze(0)
-            convolve_tensor =  F.conv3d(lvolume_i, kernel, padding='same')
-            pred_rgb_i = (convolve_tensor.squeeze(0).squeeze(0)[:,:,15].flatten())/255.
-            #norm_pred_rgb_i =(pred_rgb_i-torch.min(pred_rgb_i))/(torch.max(pred_rgb_i)-torch.min(pred_rgb_i))
-            pred_rgbs.append(pred_rgb_i.unsqueeze(-1).repeat(1,3))
-            
-        rendered_rgbs = torch.stack(pred_rgbs,dim=0) # [n_imgs, n_pts, 3]
+
+        rendered_rgbs = torch.sum(weights.unsqueeze(-1) * color, dim=-2)  # [n_imgs, n_pts, 3]
 
         out = {'colors': color,
                'densities': density,
@@ -472,7 +462,26 @@ class BaseTrainer():
         out = self.get_blending_weights(x1s_canonical_samples)
         blending_weights1 = out['weights']
         alphas1 = out['alphas']
-        pred_rgb1 = out['rendered_rgbs']
+        #pred_rgb1 = out['rendered_rgbs']
+        color = out['densities'].unsqueeze(-1)
+        #print(color.shape,"-------------------------------------------------------------")
+
+#         d_volume_coords = torch.cat([px1s.unsqueeze(2).repeat(1, 1, 32, 1), px1s_depths_samples*15.5], dim=3)
+#         coords = d_volume_coords.long()
+        
+#         x_range = [torch.min(px1s, axis=1)[0][:,0],torch.max(px1s, axis=1)[0][:,0]]
+#         y_range = [torch.min(px1s, axis=1)[0][:,1],torch.max(px1s, axis=1)[0][:,1]]
+#         x, y = np.meshgrid(np.arange(self.w), np.arange(self.h))
+        
+        pred_rgbs = []
+        for i in range(num_pairs):
+            lvolume_i = color[i,:,:,0].unsqueeze(0).unsqueeze(0).reshape(1,1,32,32,32)
+            kernel = self.psf.unsqueeze(0).unsqueeze(0)
+            convolve_tensor =  F.conv3d(lvolume_i, kernel, padding='same')
+            pred_rgb_i = (convolve_tensor.squeeze(0).squeeze(0)[:,:,15].flatten())/255.
+            #norm_pred_rgb_i =(pred_rgb_i-torch.min(pred_rgb_i))/(torch.max(pred_rgb_i)-torch.min(pred_rgb_i))
+            pred_rgbs.append(pred_rgb_i.unsqueeze(-1).repeat(1,3))
+        pred_rgb1 = torch.stack(pred_rgbs,dim=0)
 
         mask = (x2s_proj_samples[..., -1] >= depth_min_th) * (x2s_proj_samples[..., -1] <= depth_max_th)
         blending_weights1 = blending_weights1 * mask.float()
@@ -488,6 +497,7 @@ class BaseTrainer():
         if mask.sum() > 0:
             loss_rgb = F.mse_loss(pred_rgb1, gt_rgb1)
             loss_rgb_grad = self.gradient_loss(pred_rgb1, gt_rgb1)
+            #loss_rgb = loss_rgb_grad =  torch.tensor(0.)
 
             optical_flow_loss = masked_l1_loss(px2s_proj[mask], px2s[mask], weights[mask], normalize=False)
             optical_flow_grad_loss = self.gradient_loss(px2s_proj[mask], px2s[mask], weights[mask])
@@ -585,7 +595,7 @@ class BaseTrainer():
         self.scalars_to_log = {}
 
         self.optimizer.zero_grad()
-        w_rgb = self.weight_scheduler(step, 0, 1./50000, 0, 10)
+        w_rgb = self.weight_scheduler(step, 0, 1./500, 0, 10)
         w_flow_grad = self.weight_scheduler(step, 0, 1./500000, 0, 0.1)
         w_distortion = self.weight_scheduler(step, 40000, 1./2000, 0, 10)
         w_scene_flow_smooth = 20.
