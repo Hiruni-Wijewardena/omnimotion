@@ -280,7 +280,6 @@ class BaseTrainer():
         T = torch.cat((torch.ones_like(T[..., 0:1]), T), dim=-1)  # [n_imgs, n_pts, n_samples]
 
         weights = alpha * T  # [n_imgs, n_pts, n_samples]
-
         rendered_rgbs = torch.sum(weights.unsqueeze(-1) * color, dim=-2)  # [n_imgs, n_pts, 3]
 
         out = {'colors': color,
@@ -294,9 +293,22 @@ class BaseTrainer():
     def get_pred_rgbs_for_pixels(self, ids, pixels, return_weights=False):
         xs_samples, pxs_depths_samples = self.sample_3d_pts_for_pixels(pixels, return_depth=True)
         xs_canonical_samples = self.get_prediction_one_way(xs_samples, ids)
+        num_pairs = xs_canonical_samples.shape[0]
+        num_pts = xs_canonical_samples.shape[1]
         out = self.get_blending_weights(xs_canonical_samples)
         blending_weights = out['weights']
-        rendered_rgbs = out['rendered_rgbs']
+        pred_rgbs = []
+        for i in range(num_pairs):
+            colors = out['densities'].unsqueeze(-1)
+            lvolume_i = colors[i,:,:,0].unsqueeze(0).unsqueeze(0).reshape(1,1,int(num_pts**0.5),int(num_pts**0.5),32)
+            kernel = self.psf.unsqueeze(0).unsqueeze(0)
+            convolve_tensor =  F.conv3d(lvolume_i, kernel, padding='same')
+            pred_rgb_i = (convolve_tensor.squeeze(0).squeeze(0)[:,:,15].flatten())/255.
+            #norm_pred_rgb_i =(pred_rgb_i-torch.min(pred_rgb_i))/(torch.max(pred_rgb_i)-torch.min(pred_rgb_i))
+            pred_rgbs.append(pred_rgb_i.unsqueeze(-1).repeat(1,3))
+
+        rendered_rgbs = torch.stack(pred_rgbs,dim=0) # [n_imgs, n_pts, 3]
+        #rendered_rgbs = out['rendered_rgbs']
         if return_weights:
             return rendered_rgbs, blending_weights  # [n_imgs, n_pts, 3], [n_imgs, n_pts, n_samples]
         else:
@@ -832,9 +844,19 @@ class BaseTrainer():
         pred_rgbs = []
         weights_stats = []
         for id in ids:
-            rgb = []
+            img = torch.zeros((self.h, self.w, 3)).to(self.device)
             weights_stat = []
-            for coords in torch.split(grid, split_size_or_sections=chunk_size, dim=0):
+            block_len = 32
+            h_blocks = self.h//block_len 
+            w_blocks = self.w//block_len
+            num_blocks = (h_blocks)*(w_blocks) #600
+            for idx in range(0,num_blocks):
+                block_num = idx % num_blocks  #80
+                x_range = ((block_num%w_blocks)*block_len , ((block_num%w_blocks)+1)*block_len)
+                y_range = ((block_num//w_blocks)*block_len , ((block_num//w_blocks)+1)*block_len)
+                x, y = np.meshgrid(np.arange(self.w), np.arange(self.h))
+                mask = np.logical_and.reduce((x >= x_range[0], x < x_range[1], y >= y_range[0], y < y_range[1]))
+                coords = self.grid[::1, ::1, :2][mask[::1, ::1]]
                 if return_weights_stats:
                     rgbs_chunk, weights_stats_chunk = self.get_pred_rgbs_for_pixels([id], coords[None],
                                                                                     return_weights=return_weights_stats)
@@ -844,12 +866,10 @@ class BaseTrainer():
                     weights_stat.append(weights_stats_chunk)
                 else:
                     rgbs_chunk = self.get_pred_rgbs_for_pixels([id], coords[None])
-                rgb.append(rgbs_chunk[0])
-            img = torch.cat(rgb, dim=0).reshape(self.h, self.w, 3)
+                mask_indices = np.where(mask == 1)
+                img[mask_indices[0], mask_indices[1]] = rgbs_chunk[0].detach()
             pred_rgbs.append(img)
-            if return_weights_stats:
-                weights_stats.append(torch.cat(weights_stat, dim=0).reshape(self.h, self.w, 2))
-
+            
         pred_rgbs = torch.stack(pred_rgbs, dim=0)
         if return_weights_stats:
             weights_stats = torch.stack(weights_stats, dim=0)  # [n, h, w, 2]
@@ -861,18 +881,31 @@ class BaseTrainer():
         pred_rgbs = []
         pred_depths = []
         for id in ids:
-            rgb = []
-            depth_map = []
-            for coords in torch.split(grid, split_size_or_sections=chunk_size, dim=0):
+            print("id: ",id)
+            img = torch.zeros((self.h, self.w, 3)).to(self.device)
+            depth_map = torch.zeros((self.h, self.w)).to(self.device)
+            block_len = 50
+            h_blocks = self.h//block_len 
+            w_blocks = self.w//block_len
+            num_blocks = (h_blocks)*(w_blocks) #600
+            for idx in range(0,num_blocks):
+                block_num = idx % num_blocks  #80
+                x_range = ((block_num%w_blocks)*block_len , ((block_num%w_blocks)+1)*block_len)
+                y_range = ((block_num//w_blocks)*block_len , ((block_num//w_blocks)+1)*block_len)
+                x, y = np.meshgrid(np.arange(self.w), np.arange(self.h))
+                mask = np.logical_and.reduce((x >= x_range[0], x < x_range[1], y >= y_range[0], y < y_range[1]))
+                coords = self.grid[::1, ::1, :2][mask[::1, ::1]]
                 rgbs_chunk = self.get_pred_rgbs_for_pixels([id], coords[None])
-                rgb.append(rgbs_chunk[0])
+                mask_indices = np.where(mask == 1)
+                img[mask_indices[0], mask_indices[1]] = rgbs_chunk[0].detach()
+                #rgb.append(rgbs_chunk[0])
                 depths_chunk = self.get_pred_depths_for_pixels([id], coords[None])
                 depths_chunk = torch.nan_to_num(depths_chunk)
-                depth_map.append(depths_chunk[0])
+                depth_map[mask_indices[0], mask_indices[1]] = depths_chunk[0].squeeze(-1).detach()
 
-            img = torch.cat(rgb, dim=0).reshape(self.h, self.w, 3)
+            #img = torch.cat(rgb, dim=0).reshape(self.h, self.w, 3)
             pred_rgbs.append(img)
-            depth_map = torch.cat(depth_map, dim=0).reshape(self.h, self.w)
+            #depth_map = torch.cat(depth_map, dim=0).reshape(self.h, self.w)
             pred_depths.append(depth_map)
 
         pred_rgbs = torch.stack(pred_rgbs, dim=0)
