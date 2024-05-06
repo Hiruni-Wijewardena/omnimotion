@@ -35,6 +35,7 @@ class BaseTrainer():
     def __init__(self, args, device='cuda'):
         self.args = args
         self.device = device
+        self.maximum=255
 
         self.read_data()
 
@@ -106,8 +107,14 @@ class BaseTrainer():
         img_files = sorted(glob.glob(os.path.join(self.img_dir, '*')))
         self.num_imgs = min(self.args.num_imgs, len(img_files))
         self.img_files = img_files[:self.num_imgs]
+        # Taking the maximum pixel value from the images
+        for img_file in self.img_files:
+            temp=np.max(np.load(img_file))
+            if temp>self.maximum:
+                self.maximum=temp
+                
 
-        images = np.array([imageio.imread(img_file) / 255. for img_file in self.img_files])
+        images = np.array([np.load(img_file) / self.maximum for img_file in self.img_files])
         self.images = torch.from_numpy(images).float()  # [n_imgs, h, w, 3]
         self.h, self.w = self.images.shape[1:3]
 

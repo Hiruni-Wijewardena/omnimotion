@@ -31,8 +31,15 @@ class RAFTExhaustiveDataset(Dataset):
         img_names = sorted(os.listdir(self.img_dir))
         self.num_imgs = min(self.args.num_imgs, len(img_names))
         self.img_names = img_names[:self.num_imgs]
+        
+        self.maximum=255
+        for im in img_names:
+            temp=np.max(np.load(os.path.join(self.img_dir, im)))
+            if temp>self.maximum:
+                self.maximum=temp
+        print("Maximum Value is :",self.maximum)
 
-        h, w, _ = imageio.imread(os.path.join(self.img_dir, img_names[0])).shape
+        h, w, _ = np.load(os.path.join(self.img_dir, img_names[0])).shape
         self.h, self.w = h, w
         max_interval = self.num_imgs - 1 if not max_interval else max_interval
         self.max_interval = mp.Value('i', max_interval)
@@ -79,12 +86,15 @@ class RAFTExhaustiveDataset(Dataset):
         frame_interval = abs(id1 - id2)
 
         # read image, flow and confidence
-        img1 = imageio.imread(os.path.join(self.img_dir, img_name1)) / 255.
-        img2 = imageio.imread(os.path.join(self.img_dir, img_name2)) / 255.
+        img1 = np.load(os.path.join(self.img_dir, img_name1)) / self.maximum
+        img2 = np.load(os.path.join(self.img_dir, img_name2)) / self.maximum
 
         flow_file = os.path.join(self.flow_dir, '{}_{}.npy'.format(img_name1, img_name2))
         flow = np.load(flow_file)
-        mask_file = flow_file.replace('raft_exhaustive', 'raft_masks').replace('.npy', '.png')
+        
+        mask_file = flow_file.replace('raft_exhaustive', 'raft_masks')
+        mask_file=mask_file.rsplit('.', 1)[0] + '.png'
+        
         masks = imageio.imread(mask_file) / 255.
 
         coord1 = self.grid
