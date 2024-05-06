@@ -44,7 +44,7 @@ def read_frame(frame_dir, scale_size=[480]):
     """
     read a single frame & preprocess
     """
-    img = cv2.imread(frame_dir)
+    img = np.load(frame_dir)
     ori_h, ori_w, _ = img.shape
     if len(scale_size) == 1:
         if (ori_h > ori_w):
@@ -59,7 +59,7 @@ def read_frame(frame_dir, scale_size=[480]):
         th, tw = scale_size
     img = cv2.resize(img, (tw, th))
     img = img.astype(np.float32)
-    img = img / 255.0
+    img = img / 65535.0
     img = img[:, :, ::-1]
     img = np.transpose(img.copy(), (2, 0, 1))
     img = torch.from_numpy(img).float()

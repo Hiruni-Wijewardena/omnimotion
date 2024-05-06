@@ -43,7 +43,7 @@ def run_filtering(args):
     count_out_dir = os.path.join(scene_dir, 'count_maps')
     os.makedirs(count_out_dir, exist_ok=True)
 
-    h, w = imageio.imread(img_files[0]).shape[:2]
+    h, w = np.load(img_files[0]).shape[:2]
     grid = gen_grid(h, w, device=DEVICE).permute(2, 0, 1)[None]
     grid_normed = normalize_coords(grid.squeeze().permute(1, 2, 0), h, w)  # [h, w, 2]
 
